@@ -135,7 +135,7 @@ export default function Inventory() {
       {showForm && (
         <div className="glass-panel" style={{ marginBottom: '32px' }}>
           <h3>{editingId ? 'Edit Item' : 'Add New Item'}</h3>
-          <form onSubmit={handleSaveItem} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+          <form onSubmit={handleSaveItem} className="form-grid" style={{ marginTop: '16px' }}>
             <div className="input-group">
               <label>Item Name</label>
               <input type="text" required value={itemName} onChange={e => setItemName(e.target.value)} placeholder="e.g. Vintage Nike Hoodie" />
@@ -177,7 +177,7 @@ export default function Inventory() {
         </div>
       )}
 
-      <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="glass-panel table-container" style={{ padding: 0 }}>
         {loading ? (
           <div style={{ padding: '24px' }}>Loading...</div>
         ) : items.length === 0 ? (

@@ -206,3 +206,86 @@ input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--accent-color);
 }
+
+/* Layout Utils */
+.split-layout {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 32px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--card-border);
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    gap: 16px;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .sidebar > div:first-child {
+    font-size: 1.25rem !important;
+  }
+  
+  .nav-links {
+    flex-direction: row;
+    width: 100%;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 4px;
+  }
+  
+  .nav-link {
+    white-space: nowrap;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  .sidebar > div:last-child {
+    display: none; /* Hide logout text button, or make it an icon. Let's just keep it simple, they can log out from settings if we add it, or we leave it. Wait, let's not hide it. */
+  }
+  
+  .main-content {
+    padding: 16px;
+  }
+  
+  .split-layout {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .input-group {
+    grid-column: span 1 !important;
+  }
+
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

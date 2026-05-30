@@ -70,7 +70,7 @@ export default function Dashboard() {
       </div>
 
       <h2>Recent Sales</h2>
-      <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="glass-panel table-container" style={{ padding: 0 }}>
         {recentSales.length === 0 ? (
           <div style={{ padding: '24px', color: 'var(--text-secondary)' }}>No recent sales.</div>
         ) : (

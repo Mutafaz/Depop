@@ -100,7 +100,7 @@ export default function Expenses() {
       {showForm && (
         <div className="glass-panel" style={{ marginBottom: '32px' }}>
           <h3>{editingId ? 'Edit Expense' : 'Record New Expense'}</h3>
-          <form onSubmit={handleSaveExpense} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
+          <form onSubmit={handleSaveExpense} className="form-grid" style={{ marginTop: '16px' }}>
             <div className="input-group">
               <label>Description</label>
               <input type="text" required value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. 100x Polymailers" />
@@ -129,7 +129,7 @@ export default function Expenses() {
         </div>
       )}
 
-      <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="glass-panel table-container" style={{ padding: 0 }}>
         {loading ? (
            <div style={{ padding: '24px' }}>Loading...</div>
         ) : expenses.length === 0 ? (

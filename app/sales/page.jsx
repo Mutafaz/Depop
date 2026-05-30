@@ -164,8 +164,8 @@ export default function Sales() {
         <h1>Sales Log</h1>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '32px' }}>
-        <div className="glass-panel" style={{ padding: 0, overflow: 'hidden', alignSelf: 'start' }}>
+      <div className="split-layout">
+        <div className="glass-panel table-container" style={{ padding: 0, alignSelf: 'start' }}>
           {loading ? (
             <div style={{ padding: '24px' }}>Loading...</div>
           ) : sales.length === 0 ? (
