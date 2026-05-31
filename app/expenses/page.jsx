@@ -10,6 +10,10 @@ export default function Expenses() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
 
+  // Filters
+  const [filterMonth, setFilterMonth] = useState('All')
+  const [filterYear, setFilterYear] = useState('All')
+
   // Form state
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('Shipping Supplies')
@@ -81,20 +85,55 @@ export default function Expenses() {
     }
   }
 
+  // Apply Filters
+  const filteredExpenses = expenses.filter(exp => {
+    const d = new Date(exp.expense_date);
+    const m = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+    const y = d.getUTCFullYear().toString();
+    const monthMatch = filterMonth === 'All' || m === filterMonth;
+    const yearMatch = filterYear === 'All' || y === filterYear;
+    return monthMatch && yearMatch;
+  });
+
+  const availableYears = [...new Set(expenses.map(e => new Date(e.expense_date).getUTCFullYear().toString()))].sort().reverse();
+
   return (
     <div>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-        <h1>Business Expenses</h1>
-        <button className="btn" onClick={() => {
-          if (showForm) {
-            resetForm()
-          } else {
-            setShowForm(true)
-            setExpenseDate(new Date().toISOString().split('T')[0])
-          }
-        }}>
-          {showForm ? 'Cancel' : '+ Add Expense'}
-        </button>
+      <header style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1>Business Expenses</h1>
+          <button className="btn" onClick={() => {
+            if (showForm) {
+              resetForm()
+            } else {
+              setShowForm(true)
+              setExpenseDate(new Date().toISOString().split('T')[0])
+            }
+          }}>
+            {showForm ? 'Cancel' : '+ Add Expense'}
+          </button>
+        </div>
+
+        {/* Filter Bar */}
+        <div className="glass-panel" style={{ padding: '16px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Month:</label>
+            <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} style={{ padding: '8px' }}>
+              <option value="All">All</option>
+              <option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option>
+              <option value="04">Apr</option><option value="05">May</option><option value="06">Jun</option>
+              <option value="07">Jul</option><option value="08">Aug</option><option value="09">Sep</option>
+              <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Year:</label>
+            <select value={filterYear} onChange={e => setFilterYear(e.target.value)} style={{ padding: '8px' }}>
+              <option value="All">All</option>
+              {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        </div>
       </header>
 
       {showForm && (
@@ -132,8 +171,8 @@ export default function Expenses() {
       <div className="glass-panel table-container" style={{ padding: 0 }}>
         {loading ? (
            <div style={{ padding: '24px' }}>Loading...</div>
-        ) : expenses.length === 0 ? (
-           <div style={{ padding: '24px', color: 'var(--text-secondary)' }}>No expenses recorded.</div>
+        ) : filteredExpenses.length === 0 ? (
+           <div style={{ padding: '24px', color: 'var(--text-secondary)' }}>No expenses match your filters.</div>
         ) : (
           <table>
             <thead>
@@ -146,7 +185,7 @@ export default function Expenses() {
               </tr>
             </thead>
             <tbody>
-              {expenses.map(exp => (
+              {filteredExpenses.map(exp => (
                 <tr key={exp.id}>
                   <td>{new Date(exp.expense_date).toLocaleDateString()}</td>
                   <td>{exp.description}</td>

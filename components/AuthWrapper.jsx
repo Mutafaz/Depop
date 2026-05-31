@@ -42,7 +42,6 @@ export default function AuthWrapper({ children }) {
         </div>
         <nav className="nav-links">
           <a href="/" className={`nav-link ${pathname === '/' ? 'active' : ''}`}>Dashboard</a>
-          <a href="/inventory" className={`nav-link ${pathname === '/inventory' ? 'active' : ''}`}>Inventory</a>
           <a href="/sales" className={`nav-link ${pathname === '/sales' ? 'active' : ''}`}>Sales</a>
           <a href="/expenses" className={`nav-link ${pathname === '/expenses' ? 'active' : ''}`}>Expenses</a>
           <a href="/settings" className={`nav-link ${pathname === '/settings' ? 'active' : ''}`}>Settings</a>
