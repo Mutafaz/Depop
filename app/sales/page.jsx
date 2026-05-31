@@ -20,7 +20,7 @@ export default function Sales() {
   const [salePrice, setSalePrice] = useState('')
   const [shippingCost, setShippingCost] = useState('')
   const [platformFees, setPlatformFees] = useState('')
-  const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0])
+  const [saleDate, setSaleDate] = useState(new Date().toISOString().slice(0, 7))
   const [editingId, setEditingId] = useState(null)
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function Sales() {
         shipping_cost: shipping,
         platform_fees: fees,
         net_profit: netProfit,
-        sale_date: saleDate
+        sale_date: saleDate + '-01'
       }).eq('id', editingId).select('*, inventory(item_name, cost_price)')
 
       if (data) {
@@ -84,7 +84,7 @@ export default function Sales() {
       user_id: user.id,
       item_name: itemName,
       category: 'Quick Sale',
-      date_sourced: saleDate,
+      date_sourced: saleDate + '-01',
       cost_price: finalItemCost,
       status: 'Sold'
     }]).select().single()
@@ -105,7 +105,7 @@ export default function Sales() {
       shipping_cost: shipping,
       platform_fees: fees,
       net_profit: netProfit,
-      sale_date: saleDate
+      sale_date: saleDate + '-01'
     }]).select('*, inventory(item_name, cost_price)')
 
     if (data) {
@@ -120,7 +120,7 @@ export default function Sales() {
     setSalePrice(sale.sale_price)
     setShippingCost(sale.shipping_cost)
     setPlatformFees(sale.platform_fees)
-    setSaleDate(sale.sale_date)
+    setSaleDate(sale.sale_date ? sale.sale_date.slice(0, 7) : new Date().toISOString().slice(0, 7))
   }
 
   const handleDelete = async (id) => {
@@ -205,7 +205,7 @@ export default function Sales() {
               <tbody>
                 {filteredSales.map(sale => (
                   <tr key={sale.id}>
-                    <td>{new Date(sale.sale_date).toLocaleDateString()}</td>
+                    <td>{new Date(sale.sale_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
                     <td>{sale.inventory?.item_name || 'Unknown Item'}</td>
                     <td>{sale.platform}</td>
                     <td>${Number(sale.sale_price).toFixed(2)}</td>
@@ -265,8 +265,8 @@ export default function Sales() {
               </select>
             </div>
             <div className="input-group">
-              <label>Sale Date</label>
-              <input type="date" required value={saleDate} onChange={e => setSaleDate(e.target.value)} />
+              <label>Sale Month</label>
+              <input type="month" required value={saleDate} onChange={e => setSaleDate(e.target.value)} />
             </div>
             <div className="input-group">
               <label>Sale Price ($)</label>

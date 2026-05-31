@@ -146,7 +146,7 @@ export default function Dashboard() {
             <tbody>
               {filteredSales.slice(0, 10).map(sale => (
                 <tr key={sale.id}>
-                  <td>{new Date(sale.sale_date).toLocaleDateString()}</td>
+                  <td>{new Date(sale.sale_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
                   <td>{sale.inventory?.item_name || 'Unknown Item'}</td>
                   <td>{sale.platform}</td>
                   <td>${Number(sale.sale_price).toFixed(2)}</td>

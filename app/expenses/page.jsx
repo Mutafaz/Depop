@@ -18,7 +18,7 @@ export default function Expenses() {
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('Shipping Supplies')
   const [amount, setAmount] = useState('')
-  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0])
+  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0, 7))
 
   useEffect(() => {
     async function loadData() {
@@ -50,7 +50,7 @@ export default function Expenses() {
       description,
       category,
       amount: parseFloat(amount),
-      expense_date: expenseDate
+      expense_date: expenseDate + '-01'
     }
 
     if (editingId) {
@@ -73,7 +73,7 @@ export default function Expenses() {
     setDescription(exp.description)
     setCategory(exp.category)
     setAmount(exp.amount)
-    setExpenseDate(exp.expense_date)
+    setExpenseDate(exp.expense_date ? exp.expense_date.slice(0, 7) : new Date().toISOString().slice(0, 7))
     setShowForm(true)
   }
 
@@ -107,7 +107,7 @@ export default function Expenses() {
               resetForm()
             } else {
               setShowForm(true)
-              setExpenseDate(new Date().toISOString().split('T')[0])
+              setExpenseDate(new Date().toISOString().slice(0, 7))
             }
           }}>
             {showForm ? 'Cancel' : '+ Add Expense'}
@@ -154,8 +154,8 @@ export default function Expenses() {
               </select>
             </div>
             <div className="input-group">
-              <label>Date</label>
-              <input type="date" required value={expenseDate} onChange={e => setExpenseDate(e.target.value)} />
+              <label>Expense Month</label>
+              <input type="month" required value={expenseDate} onChange={e => setExpenseDate(e.target.value)} />
             </div>
             <div className="input-group">
               <label>Amount ($)</label>
@@ -187,7 +187,7 @@ export default function Expenses() {
             <tbody>
               {filteredExpenses.map(exp => (
                 <tr key={exp.id}>
-                  <td>{new Date(exp.expense_date).toLocaleDateString()}</td>
+                  <td>{new Date(exp.expense_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
                   <td>{exp.description}</td>
                   <td>{exp.category}</td>
                   <td>${Number(exp.amount).toFixed(2)}</td>
