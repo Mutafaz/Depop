@@ -10,19 +10,21 @@ export default function AuthWrapper({ children }) {
   const pathname = usePathname()
   const router = useRouter()
 
+  const isAuthPage = pathname === '/login' || pathname === '/signup'
+
   useEffect(() => {
-    if (!loading && !user && pathname !== '/login') {
+    if (!loading && !user && !isAuthPage) {
       router.push('/login')
-    } else if (!loading && user && pathname === '/login') {
+    } else if (!loading && user && isAuthPage) {
       router.push('/')
     }
-  }, [user, loading, pathname, router])
+  }, [user, loading, pathname, router, isAuthPage])
 
   if (loading) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', width: '100%' }}>Loading...</div>
   }
 
-  if (!user && pathname !== '/login') {
+  if (!user && !isAuthPage) {
     return null
   }
 
@@ -31,7 +33,7 @@ export default function AuthWrapper({ children }) {
     router.push('/login')
   }
 
-  if (pathname === '/login') {
+  if (isAuthPage) {
     return <main>{children}</main>
   }
 
