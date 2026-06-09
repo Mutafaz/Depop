@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/firebase'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { useAuth } from '@/components/AuthProvider'
 
 export default function Settings() {
@@ -13,14 +14,12 @@ export default function Settings() {
   useEffect(() => {
     async function loadSettings() {
       if (!user) return
-      const { data, error } = await supabase
-        .from('user_settings')
-        .select('default_item_cost')
-        .eq('user_id', user.id)
-        .single()
       
-      if (data) {
-        setDefaultCost(data.default_item_cost)
+      const docRef = doc(db, 'users', user.id)
+      const docSnap = await getDoc(docRef)
+      
+      if (docSnap.exists() && docSnap.data().default_item_cost !== undefined) {
+        setDefaultCost(docSnap.data().default_item_cost.toString())
       }
       setLoading(false)
     }
@@ -32,18 +31,18 @@ export default function Settings() {
     setSaving(true)
     setMessage(null)
 
-    const { error } = await supabase
-      .from('user_settings')
-      .upsert({ 
-        user_id: user.id, 
+    try {
+      const docRef = doc(db, 'users', user.id)
+      await setDoc(docRef, { 
         default_item_cost: parseFloat(defaultCost) 
-      })
-
-    if (error) {
-      setMessage({ type: 'error', text: 'Failed to save settings.' })
-    } else {
+      }, { merge: true })
+      
       setMessage({ type: 'success', text: 'Settings saved successfully!' })
+    } catch (error) {
+      console.error(error)
+      setMessage({ type: 'error', text: 'Failed to save settings.' })
     }
+    
     setSaving(false)
   }
 

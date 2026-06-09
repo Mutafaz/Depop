@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/firebase'
+import { collection, query, where, getDocs, getDoc, doc, addDoc, updateDoc, deleteDoc, orderBy } from 'firebase/firestore'
 import { useAuth } from '@/components/AuthProvider'
 
 export default function Sales() {
@@ -27,14 +28,25 @@ export default function Sales() {
     async function loadData() {
       if (!user) return
       
-      const [salesRes, settingsRes] = await Promise.all([
-        supabase.from('sales').select('*, inventory(item_name, cost_price)').eq('user_id', user.id).order('sale_date', { ascending: false }),
-        supabase.from('user_settings').select('default_item_cost').eq('user_id', user.id).single()
-      ])
+      try {
+        // Fetch User Settings
+        const docRef = doc(db, 'users', user.id)
+        const docSnap = await getDoc(docRef)
+        if (docSnap.exists() && docSnap.data().default_item_cost !== undefined) {
+          setItemCost(docSnap.data().default_item_cost.toString())
+        }
 
-      if (salesRes.data) setSales(salesRes.data)
-      if (settingsRes.data?.default_item_cost) {
-        setItemCost(settingsRes.data.default_item_cost)
+        // Fetch Sales
+        const q = query(collection(db, 'sales'), where('userId', '==', user.id))
+        const querySnapshot = await getDocs(q)
+        
+        let fetchedSales = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        // Sort descending by date locally (since orderBy requires composite indexes if combined with where)
+        fetchedSales.sort((a, b) => new Date(b.saleDate) - new Date(a.saleDate))
+        
+        setSales(fetchedSales)
+      } catch (err) {
+        console.error('Error loading data:', err)
       }
       setLoading(false)
     }
@@ -52,90 +64,71 @@ export default function Sales() {
   const handleAddSale = async (e) => {
     e.preventDefault()
 
+    const price = parseFloat(salePrice) || 0
+    const shipping = parseFloat(shippingCost) || 0
+    const fees = parseFloat(platformFees) || 0
+
     if (editingId) {
       const saleToEdit = sales.find(s => s.id === editingId)
-      const cost = saleToEdit.inventory?.cost_price || 0
-      
-      const price = parseFloat(salePrice) || 0
-      const shipping = parseFloat(shippingCost) || 0
-      const fees = parseFloat(platformFees) || 0
+      const cost = saleToEdit.itemCost || 0
       const netProfit = price - shipping - fees - cost
 
-      const { data, error } = await supabase.from('sales').update({
+      const saleRef = doc(db, 'sales', editingId)
+      const updatedData = {
         platform,
-        sale_price: price,
-        shipping_cost: shipping,
-        platform_fees: fees,
-        net_profit: netProfit,
-        sale_date: saleDate + '-01'
-      }).eq('id', editingId).select('*, inventory(item_name, cost_price)')
-
-      if (data) {
-        setSales(sales.map(s => s.id === editingId ? data[0] : s))
-        resetForm()
+        salePrice: price,
+        shippingCost: shipping,
+        platformFees: fees,
+        netProfit: netProfit,
+        saleDate: saleDate + '-01'
       }
+
+      await updateDoc(saleRef, updatedData)
+      setSales(sales.map(s => s.id === editingId ? { ...s, ...updatedData } : s))
+      resetForm()
       return
     }
 
     const finalItemCost = parseFloat(itemCost) || 0
-    
-    // Silent Inventory creation
-    const { data: newItem, error: invError } = await supabase.from('inventory').insert([{
-      user_id: user.id,
-      item_name: itemName,
-      category: 'Quick Sale',
-      date_sourced: saleDate + '-01',
-      cost_price: finalItemCost,
-      status: 'Sold'
-    }]).select().single()
-
-    if (invError || !newItem) return
-    const finalInventoryId = newItem.id
-
-    const price = parseFloat(salePrice) || 0
-    const shipping = parseFloat(shippingCost) || 0
-    const fees = parseFloat(platformFees) || 0
     const netProfit = price - shipping - fees - finalItemCost
 
-    const { data, error } = await supabase.from('sales').insert([{
-      user_id: user.id,
-      inventory_id: finalInventoryId,
+    const newSale = {
+      userId: user.id,
+      itemName,
+      itemCost: finalItemCost,
       platform,
-      sale_price: price,
-      shipping_cost: shipping,
-      platform_fees: fees,
-      net_profit: netProfit,
-      sale_date: saleDate + '-01'
-    }]).select('*, inventory(item_name, cost_price)')
-
-    if (data) {
-      setSales([data[0], ...sales])
-      resetForm()
+      salePrice: price,
+      shippingCost: shipping,
+      platformFees: fees,
+      netProfit: netProfit,
+      saleDate: saleDate + '-01'
     }
+
+    const docRef = await addDoc(collection(db, 'sales'), newSale)
+    setSales([{ id: docRef.id, ...newSale }, ...sales])
+    resetForm()
   }
 
   const handleEdit = (sale) => {
     setEditingId(sale.id)
     setPlatform(sale.platform)
-    setSalePrice(sale.sale_price)
-    setShippingCost(sale.shipping_cost)
-    setPlatformFees(sale.platform_fees)
-    setSaleDate(sale.sale_date ? sale.sale_date.slice(0, 7) : new Date().toISOString().slice(0, 7))
+    setSalePrice(sale.salePrice.toString())
+    setShippingCost(sale.shippingCost.toString())
+    setPlatformFees(sale.platformFees.toString())
+    setSaleDate(sale.saleDate ? sale.saleDate.slice(0, 7) : new Date().toISOString().slice(0, 7))
   }
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this sale?')) return
-    const { error } = await supabase.from('sales').delete().eq('id', id)
-    if (!error) {
-      setSales(sales.filter(s => s.id !== id))
-    }
+    await deleteDoc(doc(db, 'sales', id))
+    setSales(sales.filter(s => s.id !== id))
   }
 
   const editingSaleInfo = editingId ? sales.find(s => s.id === editingId) : null
 
   // Apply Filters
   const filteredSales = sales.filter(s => {
-    const d = new Date(s.sale_date);
+    const d = new Date(s.saleDate);
     const m = (d.getUTCMonth() + 1).toString().padStart(2, '0');
     const y = d.getUTCFullYear().toString();
     const monthMatch = filterMonth === 'All' || m === filterMonth;
@@ -145,7 +138,7 @@ export default function Sales() {
   });
 
   // Extract unique years and platforms for filter dropdowns
-  const availableYears = [...new Set(sales.map(s => new Date(s.sale_date).getUTCFullYear().toString()))].sort().reverse();
+  const availableYears = [...new Set(sales.map(s => new Date(s.saleDate).getUTCFullYear().toString()))].sort().reverse();
   const availablePlatforms = [...new Set(sales.map(s => s.platform))].sort();
 
   return (
@@ -205,12 +198,12 @@ export default function Sales() {
               <tbody>
                 {filteredSales.map(sale => (
                   <tr key={sale.id}>
-                    <td>{new Date(sale.sale_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
-                    <td>{sale.inventory?.item_name || 'Unknown Item'}</td>
+                    <td>{new Date(sale.saleDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
+                    <td>{sale.itemName || 'Unknown Item'}</td>
                     <td>{sale.platform}</td>
-                    <td>${Number(sale.sale_price).toFixed(2)}</td>
-                    <td style={{ color: sale.net_profit >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 500 }}>
-                      {sale.net_profit >= 0 ? '+' : '-'}${Math.abs(sale.net_profit).toFixed(2)}
+                    <td>${Number(sale.salePrice).toFixed(2)}</td>
+                    <td style={{ color: sale.netProfit >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 500 }}>
+                      {sale.netProfit >= 0 ? '+' : '-'}${Math.abs(sale.netProfit).toFixed(2)}
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
@@ -237,7 +230,7 @@ export default function Sales() {
               <div className="input-group">
                 <label>Item</label>
                 <div style={{ padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', color: 'var(--text-secondary)' }}>
-                  {editingSaleInfo?.inventory?.item_name || 'Unknown Item'}
+                  {editingSaleInfo?.itemName || 'Unknown Item'}
                 </div>
               </div>
             ) : (

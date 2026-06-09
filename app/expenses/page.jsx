@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/firebase'
+import { collection, query, where, getDocs, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { useAuth } from '@/components/AuthProvider'
 
 export default function Expenses() {
@@ -23,13 +24,17 @@ export default function Expenses() {
   useEffect(() => {
     async function loadData() {
       if (!user) return
-      const { data } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('expense_date', { ascending: false })
+      try {
+        const q = query(collection(db, 'expenses'), where('userId', '==', user.id))
+        const querySnapshot = await getDocs(q)
         
-      if (data) setExpenses(data)
+        let fetchedExpenses = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        fetchedExpenses.sort((a, b) => new Date(b.expenseDate) - new Date(a.expenseDate))
+        
+        setExpenses(fetchedExpenses)
+      } catch (err) {
+        console.error('Error loading expenses:', err)
+      }
       setLoading(false)
     }
     loadData()
@@ -46,25 +51,22 @@ export default function Expenses() {
     e.preventDefault()
     
     const expenseData = {
-      user_id: user.id,
+      userId: user.id,
       description,
       category,
       amount: parseFloat(amount),
-      expense_date: expenseDate + '-01'
+      expenseDate: expenseDate + '-01'
     }
 
     if (editingId) {
-      const { data, error } = await supabase.from('expenses').update(expenseData).eq('id', editingId).select()
-      if (data) {
-        setExpenses(expenses.map(exp => exp.id === editingId ? data[0] : exp))
-        resetForm()
-      }
+      const expenseRef = doc(db, 'expenses', editingId)
+      await updateDoc(expenseRef, expenseData)
+      setExpenses(expenses.map(exp => exp.id === editingId ? { ...exp, ...expenseData } : exp))
+      resetForm()
     } else {
-      const { data, error } = await supabase.from('expenses').insert([expenseData]).select()
-      if (data) {
-        setExpenses([data[0], ...expenses])
-        resetForm()
-      }
+      const docRef = await addDoc(collection(db, 'expenses'), expenseData)
+      setExpenses([{ id: docRef.id, ...expenseData }, ...expenses])
+      resetForm()
     }
   }
 
@@ -72,22 +74,20 @@ export default function Expenses() {
     setEditingId(exp.id)
     setDescription(exp.description)
     setCategory(exp.category)
-    setAmount(exp.amount)
-    setExpenseDate(exp.expense_date ? exp.expense_date.slice(0, 7) : new Date().toISOString().slice(0, 7))
+    setAmount(exp.amount.toString())
+    setExpenseDate(exp.expenseDate ? exp.expenseDate.slice(0, 7) : new Date().toISOString().slice(0, 7))
     setShowForm(true)
   }
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this expense?')) return
-    const { error } = await supabase.from('expenses').delete().eq('id', id)
-    if (!error) {
-      setExpenses(expenses.filter(exp => exp.id !== id))
-    }
+    await deleteDoc(doc(db, 'expenses', id))
+    setExpenses(expenses.filter(exp => exp.id !== id))
   }
 
   // Apply Filters
   const filteredExpenses = expenses.filter(exp => {
-    const d = new Date(exp.expense_date);
+    const d = new Date(exp.expenseDate);
     const m = (d.getUTCMonth() + 1).toString().padStart(2, '0');
     const y = d.getUTCFullYear().toString();
     const monthMatch = filterMonth === 'All' || m === filterMonth;
@@ -95,7 +95,7 @@ export default function Expenses() {
     return monthMatch && yearMatch;
   });
 
-  const availableYears = [...new Set(expenses.map(e => new Date(e.expense_date).getUTCFullYear().toString()))].sort().reverse();
+  const availableYears = [...new Set(expenses.map(e => new Date(e.expenseDate).getUTCFullYear().toString()))].sort().reverse();
 
   return (
     <div>
@@ -187,7 +187,7 @@ export default function Expenses() {
             <tbody>
               {filteredExpenses.map(exp => (
                 <tr key={exp.id}>
-                  <td>{new Date(exp.expense_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
+                  <td>{new Date(exp.expenseDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
                   <td>{exp.description}</td>
                   <td>{exp.category}</td>
                   <td>${Number(exp.amount).toFixed(2)}</td>

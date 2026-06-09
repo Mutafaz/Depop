@@ -2,7 +2,8 @@
 import { useAuth } from './AuthProvider'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { auth } from '@/lib/firebase'
+import { signOut } from 'firebase/auth'
 
 export default function AuthWrapper({ children }) {
   const { user, loading } = useAuth()
@@ -26,7 +27,7 @@ export default function AuthWrapper({ children }) {
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    await signOut(auth)
     router.push('/login')
   }
 

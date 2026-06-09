@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { db } from '@/lib/firebase'
+import { collection, query, where, getDocs } from 'firebase/firestore'
 import { useAuth } from '@/components/AuthProvider'
 
 export default function Dashboard() {
@@ -19,13 +20,25 @@ export default function Dashboard() {
     async function loadDashboard() {
       if (!user) return
       
-      const [salesRes, expensesRes] = await Promise.all([
-        supabase.from('sales').select('*, inventory(item_name)').eq('user_id', user.id).order('sale_date', { ascending: false }),
-        supabase.from('expenses').select('*').eq('user_id', user.id)
-      ])
+      try {
+        const salesQ = query(collection(db, 'sales'), where('userId', '==', user.id))
+        const expensesQ = query(collection(db, 'expenses'), where('userId', '==', user.id))
+        
+        const [salesSnap, expensesSnap] = await Promise.all([
+          getDocs(salesQ),
+          getDocs(expensesQ)
+        ])
 
-      if (salesRes.data) setSales(salesRes.data)
-      if (expensesRes.data) setExpenses(expensesRes.data)
+        let fetchedSales = salesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+        let fetchedExpenses = expensesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+
+        fetchedSales.sort((a, b) => new Date(b.saleDate) - new Date(a.saleDate))
+        
+        setSales(fetchedSales)
+        setExpenses(fetchedExpenses)
+      } catch (err) {
+        console.error('Error loading dashboard:', err)
+      }
       
       setLoading(false)
     }
@@ -37,7 +50,7 @@ export default function Dashboard() {
 
   // Filter Sales
   const filteredSales = sales.filter(s => {
-    const d = new Date(s.sale_date);
+    const d = new Date(s.saleDate);
     const m = (d.getUTCMonth() + 1).toString().padStart(2, '0');
     const y = d.getUTCFullYear().toString();
     const monthMatch = filterMonth === 'All' || m === filterMonth;
@@ -48,7 +61,7 @@ export default function Dashboard() {
 
   // Filter Expenses (Ignore platform filter for general business expenses)
   const filteredExpenses = expenses.filter(exp => {
-    const d = new Date(exp.expense_date);
+    const d = new Date(exp.expenseDate);
     const m = (d.getUTCMonth() + 1).toString().padStart(2, '0');
     const y = d.getUTCFullYear().toString();
     const monthMatch = filterMonth === 'All' || m === filterMonth;
@@ -56,16 +69,16 @@ export default function Dashboard() {
     return monthMatch && yearMatch;
   });
 
-  const totalRevenue = filteredSales.reduce((acc, sale) => acc + Number(sale.sale_price), 0)
-  const totalProfit = filteredSales.reduce((acc, sale) => acc + Number(sale.net_profit), 0)
+  const totalRevenue = filteredSales.reduce((acc, sale) => acc + Number(sale.salePrice), 0)
+  const totalProfit = filteredSales.reduce((acc, sale) => acc + Number(sale.netProfit), 0)
   const totalExpenses = filteredExpenses.reduce((acc, exp) => acc + Number(exp.amount), 0)
   
   // Real Net Profit = Profit from sales - Business Expenses
   const trueNetProfit = totalProfit - totalExpenses
 
   const availableYears = [...new Set([
-    ...sales.map(s => new Date(s.sale_date).getUTCFullYear().toString()),
-    ...expenses.map(e => new Date(e.expense_date).getUTCFullYear().toString())
+    ...sales.map(s => new Date(s.saleDate).getUTCFullYear().toString()),
+    ...expenses.map(e => new Date(e.expenseDate).getUTCFullYear().toString())
   ])].sort().reverse();
   const availablePlatforms = [...new Set(sales.map(s => s.platform))].sort();
 
@@ -146,12 +159,12 @@ export default function Dashboard() {
             <tbody>
               {filteredSales.slice(0, 10).map(sale => (
                 <tr key={sale.id}>
-                  <td>{new Date(sale.sale_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
-                  <td>{sale.inventory?.item_name || 'Unknown Item'}</td>
+                  <td>{new Date(sale.saleDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
+                  <td>{sale.itemName || 'Unknown Item'}</td>
                   <td>{sale.platform}</td>
-                  <td>${Number(sale.sale_price).toFixed(2)}</td>
-                  <td style={{ color: sale.net_profit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                    {sale.net_profit >= 0 ? '+' : '-'}${Math.abs(sale.net_profit).toFixed(2)}
+                  <td>${Number(sale.salePrice).toFixed(2)}</td>
+                  <td style={{ color: sale.netProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    {sale.netProfit >= 0 ? '+' : '-'}${Math.abs(sale.netProfit).toFixed(2)}
                   </td>
                 </tr>
               ))}
